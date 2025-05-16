@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import type { Candidate } from "@/lib/db"
+import type { CandidateType } from "@/models/candidate"
 import { deleteCandidate, voteForCandidate } from "@/lib/actions"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -23,27 +23,26 @@ import { Progress } from "@/components/ui/progress"
 import { motion } from "framer-motion"
 
 export function Candidates() {
-  const [candidates, setCandidates] = useState<Candidate[]>([])
-  const [editingCandidate, setEditingCandidate] = useState<Candidate | null>(null)
+  const [candidates, setCandidates] = useState<CandidateType[]>([])
+  const [editingCandidate, setEditingCandidate] = useState<CandidateType | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [totalVotes, setTotalVotes] = useState(0)
   const { toast } = useToast()
 
   useEffect(() => {
-    // In a real app, this would be an API call
     const fetchCandidates = async () => {
       setIsLoading(true)
       try {
-        // Simulate network delay
-        await new Promise((resolve) => setTimeout(resolve, 800))
+        const response = await fetch("/api/candidates")
+        const data = await response.json()
 
-        // Dynamically import the db module
-        const { db } = await import("@/lib/db")
-        setCandidates(db.candidates)
+        if (data.candidates) {
+          setCandidates(data.candidates)
 
-        // Calculate total votes
-        const total = db.candidates.reduce((sum, candidate) => sum + candidate.votes, 0)
-        setTotalVotes(total)
+          // Calculate total votes
+          const total = data.candidates.reduce((sum: number, candidate: CandidateType) => sum + candidate.votes, 0)
+          setTotalVotes(total)
+        }
       } catch (error) {
         console.error("Error fetching candidates:", error)
         toast({

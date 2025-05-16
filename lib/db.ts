@@ -1,4 +1,5 @@
-// Simple in-memory database for testing purposes
+// This file is kept for backward compatibility
+// The actual data now comes from MongoDB
 
 export type Candidate = {
   id: string
@@ -7,30 +8,7 @@ export type Candidate = {
   votes: number
 }
 
-type Database = {
-  candidates: Candidate[]
-}
-
-// Initialize with some sample data
-export const db: Database = {
-  candidates: [
-    {
-      id: "1",
-      name: "John Doe",
-      description: "Computer Science Department Representative",
-      votes: 5,
-    },
-    {
-      id: "2",
-      name: "Jane Smith",
-      description: "Student Council President Candidate",
-      votes: 3,
-    },
-    {
-      id: "3",
-      name: "Alex Johnson",
-      description: "Cultural Committee Head",
-      votes: 7,
-    },
-  ],
+// This is just a fallback in case the MongoDB connection fails
+export const db = {
+  candidates: [] as Candidate[],
 }

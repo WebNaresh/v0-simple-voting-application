@@ -1,7 +1,8 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
-import { db } from "@/lib/db"
+import dbConnect from "@/lib/db-connection"
+import { Candidate, type CandidateType } from "@/models/candidate"
 
 export async function addCandidate(formData: FormData) {
   const name = formData.get("name") as string
@@ -11,15 +12,23 @@ export async function addCandidate(formData: FormData) {
     return { error: "Candidate name is required" }
   }
 
-  db.candidates.push({
-    id: Date.now().toString(),
-    name,
-    description: description || "",
-    votes: 0,
-  })
+  try {
+    await dbConnect()
 
-  revalidatePath("/")
-  return { success: true }
+    const newCandidate = new Candidate({
+      name,
+      description: description || "",
+      votes: 0,
+    })
+
+    await newCandidate.save()
+
+    revalidatePath("/")
+    return { success: true }
+  } catch (error) {
+    console.error("Error adding candidate:", error)
+    return { error: "Failed to add candidate. Please try again." }
+  }
 }
 
 export async function updateCandidate(formData: FormData) {
@@ -31,44 +40,83 @@ export async function updateCandidate(formData: FormData) {
     return { error: "Invalid data provided" }
   }
 
-  const candidateIndex = db.candidates.findIndex((c) => c.id === id)
+  try {
+    await dbConnect()
 
-  if (candidateIndex === -1) {
-    return { error: "Candidate not found" }
+    const updatedCandidate = await Candidate.findByIdAndUpdate(
+      id,
+      {
+        name,
+        description: description || "",
+      },
+      { new: true, runValidators: true },
+    )
+
+    if (!updatedCandidate) {
+      return { error: "Candidate not found" }
+    }
+
+    revalidatePath("/")
+    return { success: true }
+  } catch (error) {
+    console.error("Error updating candidate:", error)
+    return { error: "Failed to update candidate. Please try again." }
   }
-
-  db.candidates[candidateIndex] = {
-    ...db.candidates[candidateIndex],
-    name,
-    description: description || "",
-  }
-
-  revalidatePath("/")
-  return { success: true }
 }
 
 export async function deleteCandidate(id: string) {
-  const candidateIndex = db.candidates.findIndex((c) => c.id === id)
-
-  if (candidateIndex === -1) {
-    return { error: "Candidate not found" }
+  if (!id) {
+    return { error: "Candidate ID is required" }
   }
 
-  db.candidates.splice(candidateIndex, 1)
+  try {
+    await dbConnect()
 
-  revalidatePath("/")
-  return { success: true }
+    const deletedCandidate = await Candidate.findByIdAndDelete(id)
+
+    if (!deletedCandidate) {
+      return { error: "Candidate not found" }
+    }
+
+    revalidatePath("/")
+    return { success: true }
+  } catch (error) {
+    console.error("Error deleting candidate:", error)
+    return { error: "Failed to delete candidate. Please try again." }
+  }
 }
 
 export async function voteForCandidate(id: string) {
-  const candidateIndex = db.candidates.findIndex((c) => c.id === id)
-
-  if (candidateIndex === -1) {
-    return { error: "Candidate not found" }
+  if (!id) {
+    return { error: "Candidate ID is required" }
   }
 
-  db.candidates[candidateIndex].votes += 1
+  try {
+    await dbConnect()
 
-  revalidatePath("/")
-  return { success: true }
+    const updatedCandidate = await Candidate.findByIdAndUpdate(id, { $inc: { votes: 1 } }, { new: true })
+
+    if (!updatedCandidate) {
+      return { error: "Candidate not found" }
+    }
+
+    revalidatePath("/")
+    return { success: true }
+  } catch (error) {
+    console.error("Error voting for candidate:", error)
+    return { error: "Failed to record vote. Please try again." }
+  }
+}
+
+export async function getCandidates(): Promise<{ candidates: CandidateType[] }> {
+  try {
+    await dbConnect()
+
+    const candidates = await Candidate.find({}).sort({ votes: -1 })
+
+    return { candidates: JSON.parse(JSON.stringify(candidates)) }
+  } catch (error) {
+    console.error("Error fetching candidates:", error)
+    return { candidates: [] }
+  }
 }
